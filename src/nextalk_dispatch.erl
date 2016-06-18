@@ -6,10 +6,12 @@
 %% @doc HTTP API dispatch manager module.
 
 -module(nextalk_dispatch).
+
+-include("nextalk.hrl").
+
 -import(proplists, [get_value/2]).
 -export([http_handler/0, handle_request/2]).
 
--define(APP, nextalk).
 -define(APIVSN, "v5").
 -record(state, {dispatch}).
 

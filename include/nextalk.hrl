@@ -4,6 +4,7 @@
 
 %% @author zhangsong
 
+-define(APP, nextalk).
 -define(VERSION, "0.1").
 -define(COPYRIGHT, "Copyright (C) 2016 NexTalk.IM").
 -define(IDLE_TIMEOUT, 10000).
@@ -14,6 +15,11 @@
 -record(mqtt_admin, {username, password, tags}).
 -type mqtt_admin()  :: #mqtt_admin{}.
 -type topic_class() :: uid | gid | atom().
+
+-record(nextalk_tenant_app, {
+        app_key          :: binary(),
+        app_secret       :: binary(),
+        status = pending :: atom()}).
 
 %Example: {<<"/domain/$app_key/$class/$name">>, <<"$app_key">>, $class, <<"$name">>}
 -record(nextalk_topic, {
