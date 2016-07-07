@@ -12,8 +12,10 @@
 -import(proplists, [get_value/2]).
 -export([http_handler/0, handle_request/2]).
 
--define(APIVSN, "v5").
--record(state, {dispatch}).
+-define(API, "/api").
+-define(API_WEBSOCKET, "/api/websocket").
+-define(API_LPOLLING, "/api/lpolling").
+-record(state, {dispatch, websocket, lpolling}).
 
 %%--------------------------------------------------------------------
 %% HTTP Handler and Dispatcher
@@ -22,7 +24,9 @@
 http_handler() ->
     {ok, Modules} = application:get_key(?APP, modules),
     APIs = lists:append(lists:map(fun http_api/1, Modules)),
-    State = #state{dispatch = dispatcher(APIs)},
+    State = #state{dispatch = dispatcher(APIs),
+                   websocket = websocket(),
+                   lpolling = long_polling()},
     {?MODULE, handle_request, [State]}.
 
 http_api(Mod) ->
@@ -46,6 +50,12 @@ dispatcher(APIs) ->
                 respond(Req, 404, [])
         end
     end.
+
+websocket() ->
+    fun(Req) -> nextalk_websocket:start_link(Req) end.
+
+long_polling() ->
+    fun(Req) -> nextalk_lpolling:loop(Req) end.
 
 parse_arg({Arg, Type}, Params) ->
     parse_arg({Arg, Type, undefined}, Params);
@@ -71,17 +81,34 @@ respond(Req, Code, Data) ->
 handle_request(Req, State) ->
     Method = Req:get(method), 
     Path = Req:get(path),
-    if_authorized(Req, fun() -> handle_request(Method, Path, Req, State) end).
+    Fun = fun() -> handle_request(Method, Path, Req, State) end,
+    if_authorized(Req, Fun).
 
-handle_request('GET', "/"++ ?APIVSN ++Path, Req, #state{dispatch = Dispatch}) ->
+
+is_websocket(Upgrade) -> 
+    Upgrade =/= undefined andalso string:to_lower(Upgrade) =:= "websocket".
+
+handle_request('GET', ?API_WEBSOCKET, Req, #state{websocket = Websocket}) ->
+    Upgrade = Req:get_header_value("Upgrade"),
+    case is_websocket(Upgrade) of
+        true  -> catch Websocket(Req);
+        false ->
+            lager:error("Not WobSocket: Upgrade = ~s", [Upgrade]),
+            respond(Req, 400, <<"Bad Request">>)
+    end;
+
+handle_request('GET', ?API_LPOLLING, Req, #state{lpolling = LPolling}) ->
+    catch LPolling(Req);
+
+handle_request('GET', ?API ++ Path, Req, #state{dispatch = Dispatch}) ->
     Dispatch(Req, Path, Req:parse_qs());
 
-handle_request('POST', "/"++ ?APIVSN ++Path, Req, #state{dispatch = Dispatch}) ->
+handle_request('POST', ?API ++ Path, Req, #state{dispatch = Dispatch}) ->
     Dispatch(Req, Path, Req:parse_post());
 
 handle_request(Method, Path, Req, _State) ->
 	lager:error("badrequest: method = ~p, path = ~s", [Method, Path]),
-    respond(Req, 404, []).
+    respond(Req, 404, <<"Resource file does not exist">>).
 
 %%--------------------------------------------------------------------
 %% Basic Authorization
@@ -104,8 +131,7 @@ authorized(Req) ->
                                 [Username, Reason]),
                     false
             end;
-         _   ->
-            false
+         _Other -> false
     end.
 
 user_passwd(BasicAuth) ->
