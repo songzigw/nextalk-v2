@@ -1,8 +1,13 @@
-%% @author songzigw
-%% @doc @todo Add description to nextalk_customer.
+%%--------------------------------------------------------------------
+%% Copyright (c) 2016 nextalk.im <feng@emqtt.io>.
+%%--------------------------------------------------------------------
 
+%% @doc User Information.
+%% @author zhangsong
+%% @since 0.1, 2016-7-8
+%% @version 0.1
 
--module(nextalk_customer).
+-module(nextalk_user).
 -behaviour(gen_server).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 

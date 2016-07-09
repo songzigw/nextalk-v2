@@ -2,8 +2,10 @@
 %% Copyright (c) 2016 nextalk.im <feng@emqtt.io>.
 %%--------------------------------------------------------------------
 
+%% @doc Identification and authorization.
 %% @author zhangsong
-%% @doc Authentication module.
+%% @since 0.1, 2016-7-8
+%% @version 0.1
 
 -module(nextalk_auth).
 -include("nextalk.hrl").

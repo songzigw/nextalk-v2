@@ -1,8 +1,14 @@
-%% @author songzigw
-%% @doc @todo Add description to nextalk_cusstomer_sup.
+%%--------------------------------------------------------------------
+%% Copyright (c) 2016 nextalk.im <feng@emqtt.io>.
+%%--------------------------------------------------------------------
+
+%% @doc User manager.
+%% @author zhangsong
+%% @since 0.1, 2016-7-8
+%% @version 0.1
 
 
--module(nextalk_customer_sup).
+-module(nextalk_user_sup).
 -behaviour(supervisor).
 -export([init/1]).
 

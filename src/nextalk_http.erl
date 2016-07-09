@@ -2,9 +2,10 @@
 %% Copyright (c) 2016 nextalk.im <feng@emqtt.io>.
 %%--------------------------------------------------------------------
 
+%% @doc Business interface.
 %% @author zhangsong
-%% @doc NexTalk HTTP API.
-
+%% @since 0.1, 2016-7-8
+%% @version 0.1
 
 -module(nextalk_http).
 -include("nextalk.hrl").

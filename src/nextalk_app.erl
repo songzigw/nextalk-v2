@@ -2,8 +2,10 @@
 %% Copyright (c) 2016 nextalk.im <feng@emqtt.io>.
 %%--------------------------------------------------------------------
 
+%% @doc NextTalk Application.
 %% @author zhangsong
-%% @doc NexTalk Application.
+%% @since 0.1, 2016-7-8
+%% @version 0.1
 
 -module(nextalk_app).
 

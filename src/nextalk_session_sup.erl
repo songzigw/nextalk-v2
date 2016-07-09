@@ -1,5 +1,11 @@
-%% @author songzigw
-%% @doc @todo Add description to nextalk_session_sup.
+%%--------------------------------------------------------------------
+%% Copyright (c) 2016 nextalk.im <feng@emqtt.io>.
+%%--------------------------------------------------------------------
+
+%% @doc Client session manager.
+%% @author zhangsong
+%% @since 0.1, 2016-7-8
+%% @version 0.1
 
 
 -module(nextalk_session_sup).
