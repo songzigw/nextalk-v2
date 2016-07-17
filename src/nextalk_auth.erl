@@ -10,6 +10,10 @@
 -module(nextalk_auth).
 -include("nextalk.hrl").
 -behaviour(gen_server).
+
+-define(SERVER, ?MODULE).
+
+%% gen_server function export
 -export([init/1,
          handle_call/3,
          handle_cast/2,
@@ -24,21 +28,21 @@
 
 -spec(start_link() -> {ok, pid()} | ignore | {error, any()}).
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-check(AppKey, AppSecret) when is_binary(AppKey) and is_binary(AppSecret) ->
-    Secret = <<Salt:4/binary, Hash/binary>,
-    TenantApp = #nextalk_tenant_app{app_secret = Secret>},
+check(AppKey, AppSecret) when
+    is_binary(AppKey) and is_binary(AppSecret) ->
     case ets:lookup(nextalk_tenant_app, AppKey) of
-        [TenantApp] ->
+        [TenantApp = #nextalk_tenant_app{
+            app_secret = <<Salt:4/binary, Hash/binary>>}] ->
             case Hash =:= md5_hash(Salt, AppSecret) of
                 true  -> {ok, TenantApp};
                 false -> {error, <<"AppSecret Invalid">>}
             end;
-        [_]         ->
-            {error, <<"AppSecret Invalid">>};
         []          ->
-            {error, <<"AppKey Not Found">>}
+            {error, <<"AppKey Not Found">>};
+        [_]         ->
+            {error, <<"AppSecret Invalid">>}
     end.
 
 %% ====================================================================
@@ -48,7 +52,10 @@ check(AppKey, AppSecret) when is_binary(AppKey) and is_binary(AppSecret) ->
 init([]) ->
     ets:new(nextalk_tenant_app, [set, protected, named_table, {keypos, 2}]),
     {ok, Apps} = application:get_env(?APP, auth_apps),
-    [ets:insert(nextalk_tenant_app, tenant_app(AppKey, AppSecret)) || {AppKey, AppSecret} <- Apps],
+    Fun = fun({AppKey, AppSecret}) ->
+              ets:insert(nextalk_tenant_app, tenant_app(AppKey, AppSecret))
+          end,
+    lists:foreach(Fun, Apps),
     {ok, state}.
 
 handle_call(Req, _From, State) ->

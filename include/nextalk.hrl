@@ -2,7 +2,10 @@
 %% Copyright (c) 2016 nextalk.im <feng@emqtt.io>.
 %%--------------------------------------------------------------------
 
+%% @doc NextTalk hrl.
 %% @author zhangsong
+%% @since 0.1, 2016-7-8
+%% @version 0.1
 
 -define(APP, nextalk).
 -define(VERSION, "0.1").

@@ -8,14 +8,23 @@
 %% @version 0.1
 %% @doc @todo Add description to nextalk_ticket.
 
-
 -module(nextalk_ticket).
+
+-include("nextalk.hrl").
+
+-export([get_ticket/3]).
+
+-http_api({"get_ticket", get_ticket, [{uid,    binary},
+                                      {nick,   binary},
+                                      {avatar, binary}]}).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([]).
 
+get_ticket(Uid, Nick, Avatar) ->
+    Ticket = 89987777,
+    {ok, [Ticket, Uid, Nick, Avatar]}.
 
 
 %% ====================================================================

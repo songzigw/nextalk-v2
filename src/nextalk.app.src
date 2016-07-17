@@ -1,13 +1,9 @@
 {application, nextalk,
- [
-  {description, "NexTalk message server."},
+ [{description, "NexTalk message server."},
   {vsn, "1.0"},
   {registered, []},
-  {applications, [
-                  kernel,
+  {applications, [kernel,
                   stdlib,
-                  mnesia
-                 ]},
+                  mnesia]},
   {mod, {nextalk_app, []}},
-  {env, []}
- ]}.
+  {env, []} ]}.

@@ -12,6 +12,7 @@
 -include("nextalk.hrl").
 
 -behaviour(application).
+
 -export([start/2, stop/1]).
 
 %% ====================================================================
@@ -22,6 +23,7 @@ start(_Type, _Args) ->
     {ok, Sup} = nextalk_sup:start_link(),
     {ok, HTTP} = application:get_env(?APP, http),
     open_listener(HTTP),
+    open_services(),
     {ok, Sup}.
 
 stop(_State) ->
@@ -34,3 +36,6 @@ stop(_State) ->
 
 open_listener({Port, Options}) ->
     mochiweb:start_http(Port, Options, nextalk_dispatch:http_handler()).
+
+open_services() ->
+    nextalk_auth:start_link().

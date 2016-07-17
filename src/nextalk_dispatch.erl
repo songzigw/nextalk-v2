@@ -7,18 +7,22 @@
 %% @since 0.1, 2016-7-8;
 %% @version 0.1
 
-
 -module(nextalk_dispatch).
 
 -include("nextalk.hrl").
 
--import(proplists, [get_value/2]).
--export([http_handler/0, handle_request/2]).
-
+-define(H_AUTH, {"WWW-Authenticate", "Basic Realm=\"NexTalk\""}).
+-define(H_PLAIN, {"Content-Type", "text/plain"}).
+-define(H_JSON, {"Content-Type", "application/json"}).
+-define(H_JSCRIPT, {"Content-Type", "application/x-javascript"}).
 -define(API, "/api").
 -define(API_WEBSOCKET, "/api/websocket").
--define(API_LPOLLING, "/api/lpolling").
--record(state, {dispatch, websocket, lpolling}).
+-define(API_POLLING, "/api/polling").
+
+-record(state, {docroot, dispatch}).
+
+-export([http_handler/0, handle_request/2]).
+-export([strftime/1]).
 
 %%--------------------------------------------------------------------
 %% HTTP Handler and Dispatcher
@@ -27,91 +31,101 @@
 http_handler() ->
     {ok, Modules} = application:get_key(?APP, modules),
     APIs = lists:append(lists:map(fun http_api/1, Modules)),
-    State = #state{dispatch = dispatcher(APIs),
-                   websocket = websocket(),
-                   lpolling = long_polling()},
+    State = #state{docroot = docroot(), dispatch = dispatcher(APIs)},
     {?MODULE, handle_request, [State]}.
 
 http_api(Mod) ->
-    [{Name, {Mod, Fun, Args}} || {http_api, [{Name, Fun, Args}]} <- Mod:module_info(attributes)].
+    Attrs = Mod:module_info(attributes),
+    [{Name, {Mod, Fun, Args}} || {http_api, [{Name, Fun, Args}]} <- Attrs].
+
+docroot() ->
+    {file, Here} = code:is_loaded(?MODULE),
+    Dir = filename:dirname(filename:dirname(Here)),
+    filename:join([Dir, "priv", "www"]).
 
 dispatcher(APIs) ->
     fun(Req, Name, Params) ->
-        case get_value(Name, APIs) of
+        case proplists:get_value(Name, APIs) of
             {Mod, Fun, ArgDefs} ->
-                Args = lists:map(fun(Def) -> parse_arg(Def, Params) end, ArgDefs),
+                F = fun(Def) -> parse_arg(Def, Params) end,
+                Args = lists:map(F, ArgDefs),
                 case catch apply(Mod, Fun, Args) of
                     {ok, Data} ->
-                        respond(Req, 200, Data);
+                        Format = proplists:get_value("format", Params),
+                        CB = proplists:get_value("callback", Params),
+                        respond(Req, Data, Format, CB);
                     {'EXIT', Reason} ->
-                        lager:error("Execute API '~s' Error: ~p", [Name, Reason]),
-                        respond(Req, 404, []);
-                    _ ->
-                        respond(Req, 404, [])
+                        lager:error("Badrequest API '~s' Error: ~p",
+                                    [Name, Reason]),
+                        Req:respond({404, [?H_PLAIN], Reason})
                 end;
             undefined ->
-                respond(Req, 404, [])
+                Req:respond({404, [?H_PLAIN],
+                            <<"Resource file does not exist.">>})
         end
     end.
 
-websocket() ->
-    fun(Req) -> nextalk_websocket:start_link(Req) end.
-
-long_polling() ->
-    fun(Req) -> nextalk_lpolling:loop(Req) end.
+respond(Req, Data, Format, Callback) ->
+    Data2 = case Format of
+                "xml"  -> to_xml(Data);
+                "json" -> to_json(Data);
+                _Type  -> to_json(Data)
+            end,
+    case Callback of
+        undefined -> Req:respond({200, [?H_JSON], Data2});
+        []        -> Req:respond({200, [?H_JSON], Data2});
+        _         ->
+            JS = list_to_binary([Callback, "(", Data2, ")"]),
+            Req:respond({200, [?H_JSCRIPT], JS})
+    end.
 
 parse_arg({Arg, Type}, Params) ->
     parse_arg({Arg, Type, undefined}, Params);
 parse_arg({Arg, Type, Def}, Params) ->
-    case get_value(Arg, Params) of
+    case proplists:get_value(Arg, Params) of
         undefined -> Def;
         Val       -> format(Type, Val)
     end.
-
-respond(Req, 401, Data) ->
-    Req:respond({401, [{"WWW-Authenticate", "Basic Realm=\"NexTalk\""}], Data});
-respond(Req, 404, Data) ->
-    Req:respond({404, [{"Content-Type", "text/plain"}], Data});
-respond(Req, 200, Data) ->
-    Req:respond({200, [{"Content-Type", "application/json"}], to_json(Data)});
-respond(Req, Code, Data) ->
-    Req:respond({Code, [{"Content-Type", "text/plain"}], Data}).
 
 %%--------------------------------------------------------------------
 %% Handle HTTP Request
 %%--------------------------------------------------------------------
 
 handle_request(Req, State) ->
-    Method = Req:get(method), 
     Path = Req:get(path),
-    Fun = fun() -> handle_request(Method, Path, Req, State) end,
-    if_authorized(Req, Fun).
+    Method = Req:get(method),
+    lager:info("Execute path=~s, method=~s", [Path, Method]),
+    handle_request(Path, Req, State).
 
-
-is_websocket(Upgrade) -> 
-    Upgrade =/= undefined andalso string:to_lower(Upgrade) =:= "websocket".
-
-handle_request('GET', ?API_WEBSOCKET, Req, #state{websocket = Websocket}) ->
-    Upgrade = Req:get_header_value("Upgrade"),
-    case is_websocket(Upgrade) of
-        true  -> catch Websocket(Req);
+handle_request(?API_POLLING, Req, #state{dispatch = Dispatch}) ->
+    Params = params(Req),
+    Dispatch(Req, ?API_POLLING, Params);
+handle_request(?API_WEBSOCKET, Req, #state{dispatch = _Dispatch}) ->
+    case is_websocket(Req) of
+        true  ->
+            nextalk_websocket:start_link(Req);
         false ->
-            lager:error("Not WobSocket: Upgrade = ~s", [Upgrade]),
-            respond(Req, 400, <<"Bad Request">>)
+            Req:respond(400, [?H_PLAIN], <<"Bad Request">>)
     end;
+    %Params = params(Req),
+    %Dispatch(Req, ?API_WEBSOCKET, Params);
+handle_request(?API ++ Path, Req, #state{dispatch = Dispatch}) ->
+    Params = params(Req),
+    Fun = fun() -> Dispatch(Req, ?API ++ Path, Params) end,
+    if_authorized(Req, Fun);
+handle_request("/" ++ Rest, Req, #state{docroot = DocRoot}) ->
+    mochiweb_request:serve_file(Rest, DocRoot, Req).
 
-handle_request('GET', ?API_LPOLLING, Req, #state{lpolling = LPolling}) ->
-    catch LPolling(Req);
+params(Req) ->
+    case Req:get(method) of
+        'GET'  -> Req:parse_qs();
+        'POST' -> Req:parse_post()
+    end.
 
-handle_request('GET', ?API ++ Path, Req, #state{dispatch = Dispatch}) ->
-    Dispatch(Req, Path, Req:parse_qs());
-
-handle_request('POST', ?API ++ Path, Req, #state{dispatch = Dispatch}) ->
-    Dispatch(Req, Path, Req:parse_post());
-
-handle_request(Method, Path, Req, _State) ->
-	lager:error("badrequest: method = ~p, path = ~s", [Method, Path]),
-    respond(Req, 404, <<"Resource file does not exist">>).
+is_websocket(Req) ->
+    Upgrade = Req:get_header_value("Upgrade"),
+    Upgrade =/= undefined andalso 
+    string:to_lower(Upgrade) =:= "websocket".
 
 %%--------------------------------------------------------------------
 %% Basic Authorization
@@ -120,34 +134,55 @@ handle_request(Method, Path, Req, _State) ->
 if_authorized(Req, Fun) ->
     case authorized(Req) of
         true  -> Fun();
-        false -> respond(Req, 401,  [])
+        false -> Req:respond({401, [?H_AUTH], []})
     end.
 
 authorized(Req) ->
-    case Req:get_header_value("Authorization") of
+    Auth = Req:get_header_value("Authorization"),
+    case Auth of
         "Basic " ++ BasicAuth ->
-            {Username, Password} = user_passwd(BasicAuth),
-            case nextalk_auth:check(bin(Username), bin(Password)) of
-                ok -> true;
-                {error, Reason} ->
-                    lager:error("HTTP Auth failure: username=~s, reason=~p",
-                                [Username, Reason]),
-                    false
+            {Key, Pwd} = tenant_app(BasicAuth),
+            Result = nextalk_auth:check(bin(Key), bin(Pwd)),
+            case Result of
+                {ok,    _Tenant} -> true;
+                {error, _Reason} -> false
             end;
-         _Other -> false
+        _Other -> false
     end.
 
-user_passwd(BasicAuth) ->
-    list_to_tuple(binary:split(base64:decode(BasicAuth), <<":">>)).
+tenant_app(BasicAuth) ->
+    Subject = base64:decode(BasicAuth),
+    list_to_tuple(binary:split(Subject, <<":">>)).
+
+%%--------------------------------------------------------------------
+%% Utils
+%%--------------------------------------------------------------------
 
 to_json([])   -> <<"[]">>;
 to_json(Data) -> iolist_to_binary(mochijson2:encode(Data)).
 
+to_xml([])   -> <<"[]">>;
+to_xml(Data) -> iolist_to_binary(mochijson2:encode(Data)).
+
 format(string, S) -> S;
 format(binary, S) -> list_to_binary(S);
-format(int, S)    -> list_to_integer(S).
+format(int,    S) -> list_to_integer(S).
+
 
 bin(S) when is_list(S)   -> list_to_binary(S);
 bin(A) when is_atom(A)   -> bin(atom_to_list(A));
 bin(B) when is_binary(B) -> B.
 
+
+strftime({MegaSecs, Secs, _MicroSecs}) ->
+    strftime(datetime(MegaSecs * 1000000 + Secs));
+strftime({{Y,M,D}, {H,MM,S}}) ->
+    lists:flatten(
+        io_lib:format(
+            "~4..0w-~2..0w-~2..0w ~2..0w:~2..0w:~2..0w",
+            [Y, M, D, H, MM, S])).
+
+datetime(Timestamp) when is_integer(Timestamp) ->
+    Universal = calendar:gregorian_seconds_to_datetime(Timestamp +
+    calendar:datetime_to_gregorian_seconds({{1970,1,1}, {0,0,0}})),
+    calendar:universal_time_to_local_time(Universal).
