@@ -38,7 +38,7 @@ rpc(Pid) ->
     Pid ! {From, msg},
     receive
         {Pid, Data} -> Data
-    after ?POLL_TIMEOUT
+    after ?POLL_TIMEOUT ->
         {ok, {success, 0}}
     end.
 
