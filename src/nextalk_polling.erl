@@ -11,8 +11,10 @@
 
 -include("nextalk.hrl").
 
--http_api({"/api/polling", polling, [{ticket, binary},
-                                     {session_id, binary}]}).
+-http_api({"/api/polling",
+           polling,
+           [{ticket, binary},
+            {session_id, binary}]}).
 
 -export([polling/2, resume/0]).
 
@@ -21,18 +23,27 @@
 %% ====================================================================
 
 polling(Ticket, SessionID) ->
-    erlang:send_after(?POLL_TIMEOUT, self(), timeout),
-    proc_lib:hibernate(?MODULE, resume, []).
-
-resume() ->
-    receive
-        {ok  , _Packets} -> "{\"success\": 1}";
-        {stop, _Reason}  -> "{\"success\": 0}";
-        timeout          -> "{}"
-    end.
+    Pid = start(),
+    rpc(Pid).
 
 
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
 
+start() -> spawn_link(fun ?MODULE:resume/0).
+
+rpc(Pid) ->
+    From = self(),
+    Pid ! {From, msg},
+    receive
+        {Pid, Data} -> Data
+    after ?POLL_TIMEOUT
+        {ok, {success, 0}}
+    end.
+
+resume() ->
+    receive
+        {From, msg} ->
+            From ! {self(), {ok, {success, 1}}}
+    end.

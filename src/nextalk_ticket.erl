@@ -14,9 +14,11 @@
 
 -export([get_ticket/3]).
 
--http_api({"get_ticket", get_ticket, [{uid,    binary},
-                                      {nick,   binary},
-                                      {avatar, binary}]}).
+-http_api({"/api/get_ticket",
+           get_ticket,
+           [{uid,    binary},
+            {nick,   binary},
+            {avatar, binary}]}).
 
 %% ====================================================================
 %% API functions
