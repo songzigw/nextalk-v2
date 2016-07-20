@@ -26,7 +26,7 @@
         status = pending :: atom()}).
 
 -record(nt_ticket, {
-        token            :: binary(),
+        t_id             :: binary(),
         uid              :: binary(),
         nick             :: binary(),
         avatar           :: binary(),
