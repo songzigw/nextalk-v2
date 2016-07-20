@@ -24,13 +24,28 @@
 %% API functions
 %% ====================================================================
 
+%% make(Uid, Nick, Avatar)
+%% 获得令牌
+-spec make(Uid, Nick, Avatar) ->
+    {ok, nt_ticket()} when
+    Uid    :: binary(),
+    Nick   :: binary(),
+    Avatar :: binary().
 get_ticket(Uid, Nick, Avatar) ->
-    Ticket = 89987777,
-    {ok, [Ticket, Uid, Nick, Avatar]}.
+    Ticket = #nt_ticket{token  = token(),
+                        uid    = Uid,
+                        nick   = Nick,
+                        avatar = Avatar},
+    {ok, Ticket}.
 
 
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
 
-
+token() ->
+    random:seed(now()),
+    I1 = random:uniform(round(math:pow(2, 48))) - 1,
+    I2 = random:uniform(round(math:pow(2, 32))) - 1,
+    L = lists:flatten(io_lib:format("~12.16.0b~8.16.0b", [I1, I2])),
+    list_to_binary(L).

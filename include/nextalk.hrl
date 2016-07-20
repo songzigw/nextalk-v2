@@ -15,22 +15,24 @@
 
 -define(EMPTY_KEY(Key), ((Key == undefined) orelse (Key == <<>>))).
 
--record(mqtt_admin, {username, password, tags}).
--type mqtt_admin()  :: #mqtt_admin{}.
--type topic_class() :: uid | gid | atom().
+-type mqtt_admin() :: #mqtt_admin{}.
+-type nt_ticket() :: #nt_ticket{}.
 
--record(nextalk_tenant_app, {
+-record(mqtt_admin, {username, password, tags}).
+
+-record(nt_tenant_app, {
         app_key          :: binary(),
         app_secret       :: binary(),
         status = pending :: atom()}).
 
-%Example: {<<"/domain/$app_key/$class/$name">>, <<"$app_key">>, $class, <<"$name">>}
--record(nextalk_topic, {
-        domain  :: atom(),
-        class   :: topic_class(),
-        name    :: binary()}).
+-record(nt_ticket, {
+        token            :: binary(),
+        uid              :: binary(),
+        nick             :: binary(),
+        avatar           :: binary(),
+        status = pending :: atom()}).
 
--record(nextalk_message, {
+-record(nt_message, {
         from            :: binary(),
         nick            :: binary(),
         to              :: binary(),
@@ -38,7 +40,7 @@
         type = chat     :: chat | grpchat,
         body = <<>>     :: binary()}).
 
--record(nextalk_endpoint, {
+-record(nt_user, {
         uid                 :: binary(),
         name                :: binary(),
         nick                :: binary(),
