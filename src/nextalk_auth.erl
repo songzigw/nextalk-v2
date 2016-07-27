@@ -12,6 +12,7 @@
 -include("nextalk.hrl").
 
 -define(SERVER, ?MODULE).
+-define(TAB, nextalk_tenant_app).
 
 %% gen_server function export
 -export([init/1,
@@ -32,8 +33,8 @@ start_link() ->
 
 check(AppKey, AppSecret) when
     is_binary(AppKey) and is_binary(AppSecret) ->
-    case ets:lookup(nt_tenant_app, AppKey) of
-        [TenantApp = #nt_tenant_app{
+    case ets:lookup(?TAB, AppKey) of
+        [TenantApp = #nextalk_tenant_app{
             app_secret = <<Salt:4/binary, Hash/binary>>}] ->
             case Hash =:= md5_hash(Salt, AppSecret) of
                 true  -> {ok, TenantApp};
@@ -50,10 +51,10 @@ check(AppKey, AppSecret) when
 %% ====================================================================
 
 init([]) ->
-    ets:new(nt_tenant_app, [set, protected, named_table, {keypos, 2}]),
+    ets:new(?TAB, [set, protected, named_table, {keypos, 2}]),
     {ok, Apps} = application:get_env(?APP, auth_apps),
     Fun = fun({AppKey, AppSecret}) ->
-              ets:insert(nt_tenant_app, tenant_app(AppKey, AppSecret))
+              ets:insert(?TAB, tenant_app(AppKey, AppSecret))
           end,
     lists:foreach(Fun, Apps),
     {ok, state}.
@@ -77,7 +78,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 %% ====================================================================
 tenant_app(AppKey, AppSecret) ->
-    #nt_tenant_app{app_key    = binary(AppKey),
+    #nextalk_tenant_app{app_key    = binary(AppKey),
                         app_secret = hash(binary(AppSecret)),
                         status     = binary(active)}.
 

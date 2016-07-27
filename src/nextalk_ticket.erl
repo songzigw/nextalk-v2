@@ -23,29 +23,30 @@
 
 -http_api({"/api/get_token", get_token, [{uid,    binary},
                                          {nick,   binary},
-                                         {avatar, binary}]}).
+                                         {avatar, binary},
+                                         {token,  binary}]}).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
--spec start_link() -> {ok, pid()} | ignore | {error, any()}.
-start_link(Token) ->
-    gen_server:start_link({local, Token}, ?MODULE, [Token], []).
-
 %% @doc Get the token
--spec get_token(Uid, Nick, Avatar) ->
-    {ok, nt_ticket()} when
+-spec get_token(Uid, Nick, Avatar, Token) ->
+    {ok, nextalk_ticket()} when
     Uid    :: binary(),
     Nick   :: binary(),
-    Avatar :: binary().
-get_token(Uid, Nick, Avatar) ->
-    Ticket = #nt_ticket{token  = token(),
+    Avatar :: binary(),
+    Token  :: binary().
+get_token(Uid, Nick, Avatar, Token) ->
+    Ticket = #nextalk_ticket{token  = token(),
                         uid    = Uid,
                         nick   = Nick,
                         avatar = Avatar},
     {ok, Ticket}.
 
+-spec start_link() -> {ok, pid()} | ignore | {error, any()}.
+start_link(Token) ->
+    gen_server:start_link({local, Token}, ?MODULE, [Token], []).
 
 %% ====================================================================
 %% Behavioural functions 

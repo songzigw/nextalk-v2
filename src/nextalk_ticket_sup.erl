@@ -12,6 +12,7 @@
 -include("nextalk.hrl").
 
 -define(SUP_NAME, ?MODULE).
+-define(TAB, nextalk_ticket).
 
 -export([init/1]).
 -export([start_link/0, start_child/1]).
@@ -33,9 +34,19 @@ start_child(Token) when is_atom(Token) ->
 %% ====================================================================
 
 init([]) ->
+    %% Create ticket table
+    create_ticket_tab(),
     {ok, { {one_for_all, 10, 100}, [] } }.
 
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
 
+create_ticket_tab() ->
+    case ets:info(?TAB, name) of
+        undefined ->
+            ets:new(?TAB, [ordered_set, named_table, public,
+                           {keypos, 2}, {write_concurrency, true}]);
+        _ ->
+            ok
+    end.

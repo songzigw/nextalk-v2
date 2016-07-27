@@ -17,25 +17,25 @@
 
 -record(mqtt_admin, {username, password, tags}).
 
--record(nt_tenant_app, {
+-record(nextalk_tenant_app, {
         app_key          :: binary(),
         app_secret       :: binary(),
         status = pending :: atom()}).
 
--record(nt_user, {
+-record(nextalk_user, {
         uid              :: binary(),
         nick             :: binary(),
         avatar           :: binary(),
         show = available :: available | away | chat | dnd | invisible | unavailable}).
 
--record(nt_ticket, {
+-record(nextalk_ticket, {
         token            :: binary(),
         uid              :: binary(),
         nick             :: binary(),
         avatar           :: binary(),
         status = pending :: atom()}).
 
--record(nt_message, {
+-record(nextalk_message, {
         from            :: binary(),
         nick            :: binary(),
         to              :: binary(),
@@ -44,4 +44,4 @@
         body = <<>>     :: binary()}).
 
 -type mqtt_admin() :: #mqtt_admin{}.
--type nt_ticket() :: #nt_ticket{}.
+-type nextalk_ticket() :: #nextalk_ticket{}.
