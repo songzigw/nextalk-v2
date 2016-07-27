@@ -8,8 +8,8 @@
 %% @version 0.1
 
 -module(nextalk_auth).
--include("nextalk.hrl").
 -behaviour(gen_server).
+-include("nextalk.hrl").
 
 -define(SERVER, ?MODULE).
 
@@ -20,13 +20,13 @@
          handle_info/2,
          terminate/2,
          code_change/3]).
+-export([start_link/0, check/2]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/0, check/2]).
 
--spec(start_link() -> {ok, pid()} | ignore | {error, any()}).
+-spec start_link() -> {ok, pid()} | ignore | {error, any()}.
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 

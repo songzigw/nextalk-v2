@@ -15,9 +15,6 @@
 
 -define(EMPTY_KEY(Key), ((Key == undefined) orelse (Key == <<>>))).
 
--type mqtt_admin() :: #mqtt_admin{}.
--type nt_ticket() :: #nt_ticket{}.
-
 -record(mqtt_admin, {username, password, tags}).
 
 -record(nt_tenant_app, {
@@ -25,8 +22,14 @@
         app_secret       :: binary(),
         status = pending :: atom()}).
 
+-record(nt_user, {
+        uid              :: binary(),
+        nick             :: binary(),
+        avatar           :: binary(),
+        show = available :: available | away | chat | dnd | invisible | unavailable}).
+
 -record(nt_ticket, {
-        t_id             :: binary(),
+        token            :: binary(),
         uid              :: binary(),
         nick             :: binary(),
         avatar           :: binary(),
@@ -40,11 +43,5 @@
         type = chat     :: chat | grpchat,
         body = <<>>     :: binary()}).
 
--record(nt_user, {
-        uid                 :: binary(),
-        name                :: binary(),
-        nick                :: binary(),
-        domain              :: binary(),
-        show = available    :: available | away | chat | dnd | invisible | unavailable,
-        status = <<>>       :: binary()}).
-
+-type mqtt_admin() :: #mqtt_admin{}.
+-type nt_ticket() :: #nt_ticket{}.

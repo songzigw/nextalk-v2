@@ -9,15 +9,23 @@
 
 -module(nextalk_sup).
 -behaviour(supervisor).
+
+-define(SUP_NAME, ?MODULE).
+-define(CHILD(Mod, Type), {Mod, {Mod, start_link, []},
+                           permanent, 5000, Type, [Mod]}).
+
 -export([init/1]).
+-export([start_link/0, start_child/2]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/0]).
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?SUP_NAME}, ?MODULE, []).
+
+start_child(Mod, Type) when is_atom(Mod), is_atom(Type) ->
+    supervisor:start_child(?SUP_NAME, ?CHILD(Mod, Type)).
 
 %% ====================================================================
 %% Behavioural functions 

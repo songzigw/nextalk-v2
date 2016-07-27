@@ -53,7 +53,8 @@ dispatcher(APIs) ->
                     {ok, Data} ->
                         Format = proplists:get_value("format", Params),
                         CB = proplists:get_value("callback", Params),
-                        respond(Req, Data, Format, CB);
+                        Ret = [{status, 0}, {data, Data}],
+                        respond(Req, Ret, Format, CB);
                     {'EXIT', Reason} ->
                         lager:error("Badrequest API '~s' Error: ~p",
                                     [Name, Reason]),
@@ -65,17 +66,17 @@ dispatcher(APIs) ->
         end
     end.
 
-respond(Req, Data, Format, Callback) ->
-    Data2 = case Format of
-                "xml"  -> to_xml(Data);
-                "json" -> to_json(Data);
-                _Type  -> to_json(Data)
-            end,
+respond(Req, Ret, Format, Callback) ->
+    Ret2 = case Format of
+               "xml"  -> to_xml(Ret);
+               "json" -> to_json(Ret);
+               _Type  -> to_json(Ret)
+           end,
     case Callback of
-        undefined -> Req:respond({200, [?H_JSON], Data2});
-        []        -> Req:respond({200, [?H_JSON], Data2});
+        undefined -> Req:respond({200, [?H_JSON], Ret2});
+        []        -> Req:respond({200, [?H_JSON], Ret2});
         _         ->
-            JS = list_to_binary([Callback, "(", Data2, ")"]),
+            JS = list_to_binary([Callback, "(", Ret2, ")"]),
             Req:respond({200, [?H_JSCRIPT], JS})
     end.
 
