@@ -11,13 +11,16 @@
 -behaviour(gen_server).
 -include("nextalk.hrl").
 
+-define(INTERVAL, 1000 * 60).
+-define(TIMEOUT, 60 * 10).
+
 -export([init/1,
          handle_call/3,
          handle_cast/2,
          handle_info/2,
          terminate/2,
          code_change/3]).
--export([get_ticket/3]).
+-export([get_ticket/4, is_valid/1, stop/1, update/1]).
 
 -http_api({"/api/get_ticket", get_ticket, [{uid,    binary},
                                            {nick,   binary},
@@ -30,42 +33,109 @@
 
 %% @doc Get the ticket
 -spec get_ticket(Uid, Nick, Avatar, TID) ->
-        {ok, nextalk_ticket()} when
+        {ok, binary()} when
         Uid    :: binary(),
         Nick   :: binary(),
         Avatar :: binary(),
         TID    :: binary().
-get_ticket(Uid, Nick, Avatar, TID) ->
-    Ticket = #nextalk_ticket{tid    = token(),
+get_ticket(Uid, Nick, Avatar, TID) when ?EMPTY_KEY(TID) ->
+    Ticket = #nextalk_ticket{tid = token(),
                              uid    = Uid,
                              nick   = Nick,
                              avatar = Avatar},
     nextalk_ticket_sup:start_child(Ticket),
-    {ok, Ticket}.
+    ets:insert(?TAB_TICKET, Ticket),
+    {ok, Ticket#nextalk_ticket.tid}.
+get_ticket(Uid, Nick, Avatar, TID) ->
+    case is_valid(TID) of
+        false ->
+            get_ticket(Uid, Nick, Avatar, <<>>),
+        true  ->
+            update(TID, Nick, Avatar),
+            {ok, TID}.
+    end.
 
+%% @doc Start link
 -spec start_link(Ticket) -> 
         {ok, pid()} | ignore | {error, any()} when
         Ticket :: nextalk_ticket().
 start_link(Ticket) ->
     #nextalk_ticket{tid = TID} = Ticket,
-    gen_server:start_link({local, TID}, ?MODULE, [Ticket], []).
+    Tid = binary_to_atom(TID, utf8),
+    gen_server:start_link({local, Tid}, ?MODULE, [Ticket], []).
+
+%% @doc Stop ticket server
+stop(TID) ->
+    Tid = binary_to_atom(TID, utf8),
+    ets:delete(?TAB_TICKET, Tid),
+    gen_server:call(Tid, stop).
+
+%% @doc Validity checking
+checking() ->
+    erlang:send_after(?INTERVAL, self(), checking).
+
+%% @doc Update user information
+update(TID, Nick, Avatar) ->
+    Tid = binary_to_atom(TID, utf8),
+    gen_server:call(Tid, {update, Nick, Avatar}),
+    ets:update_element(?TAB_TICKET, Tid,
+                       [{#nextalk_ticket.nick, Nick},
+                        {#nextalk_ticket.avatar, Avatar}]).
+
+update(TID) ->
+    Tid = binary_to_atom(TID, utf8),
+    Ts = nextalk_util:timestamp(),
+    gen_server:call(Tid, {update_time, Ts}),
+    ets:update_element(?TAB_TICKET, Tid,
+                {#nextalk_ticket.time, Ts}).
+
+%% @doc Get ticket user information
+user(TID) ->
+    Tid = binary_to_atom(TID, utf8),
+    gen_server:call(Tid, user).
+
+%% @doc Determine the ticket is valid
+is_valid(TID) ->
+    Tid = binary_to_atom(TID, utf8),
+    case erlang:whereis(Tid) of
+        undefined -> false;
+        _         -> true
+    end.
 
 %% ====================================================================
 %% Behavioural functions 
 %% ====================================================================
 
 init([Ticket]) ->
-    {ok, Ticket}.
+    checking(), {ok, Ticket}.
 
-handle_call(_Req, _From, State) ->
-    Reply = ok,
+handle_call({update, Nick, Avatar}, _From, State) ->
+    NewState = State#nextalk_ticket{nick = Nick,
+                                    avatar = Avatar},
+    {reply, ok, NewState};
+handle_call({update_time, Timestamp}, _From, State) ->
+    NewState = State#nextalk_ticket{time = Timestamp},
+    {reply, ok, NewState};
+handle_call(stop, _From, State) ->
+    {stop, logout, State};
+handle_call(user, _From, State) ->
+    #nextalk_ticket{uid = UID, nick = Nick, avatar = Avatar} = State,
+    Reply = #nextalk_user{uid = UID, nick = Nick, avatar = Avatar},
     {reply, Reply, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(_Info, State) ->
-    {noreply, State}.
+handle_info(checking, #nextalk_ticket{time = Time, tid = TID} = State) ->
+    Curr = nextalk_util:timestamp(),
+    case (Curr - Time) > ?TIMEOUT of
+        false ->
+            checking(),
+            {noreply, State};
+        true  ->
+            stop(TID),
+            {stop, logout, State}
+    end.
 
 terminate(_Reason, _State) ->
     ok.

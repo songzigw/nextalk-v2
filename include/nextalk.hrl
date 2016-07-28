@@ -36,6 +36,7 @@
         uid              :: binary(),
         nick             :: binary(),
         avatar           :: binary(),
+        time = nextalk_util:timestamp(),
         status = pending :: atom()}).
 
 -record(nextalk_message, {
@@ -47,4 +48,5 @@
         body = <<>>     :: binary()}).
 
 -type mqtt_admin() :: #mqtt_admin{}.
+-type nextalk_user() :: #nextalk_user{}.
 -type nextalk_ticket() :: #nextalk_ticket{}.
