@@ -12,7 +12,6 @@
 -include("nextalk.hrl").
 
 -define(SUP_NAME, ?MODULE).
--define(TAB, nextalk_ticket).
 
 -export([init/1]).
 -export([start_link/0, start_child/1]).
@@ -24,9 +23,10 @@
 start_link() ->
     supervisor:start_link({local, ?SUP_NAME}, ?MODULE, []).
 
-start_child(Token) when is_atom(Token) ->
+start_child(Ticket) when is_record(Ticket, #nextalk_ticket) ->
+    #nextalk_ticket{tid = TID} = Ticket,
     supervisor:start_child(?SUP_NAME,
-        {Token, {nextalk_ticket, start_link, []},
+        {TID, {nextalk_ticket, start_link, [Ticket]},
          permanent, 5000, worker, [nextalk_ticket]}).
 
 %% ====================================================================
@@ -43,9 +43,9 @@ init([]) ->
 %% ====================================================================
 
 create_ticket_tab() ->
-    case ets:info(?TAB, name) of
+    case ets:info(?TAB_TICKET, name) of
         undefined ->
-            ets:new(?TAB, [ordered_set, named_table, public,
+            ets:new(?TAB_TICKET, [ordered_set, named_table, public,
                            {keypos, 2}, {write_concurrency, true}]);
         _ ->
             ok

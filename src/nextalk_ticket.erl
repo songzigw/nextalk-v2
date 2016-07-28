@@ -11,49 +11,51 @@
 -behaviour(gen_server).
 -include("nextalk.hrl").
 
--record(state, {}).
-
 -export([init/1,
          handle_call/3,
          handle_cast/2,
          handle_info/2,
          terminate/2,
          code_change/3]).
--export([get_token/3]).
+-export([get_ticket/3]).
 
--http_api({"/api/get_token", get_token, [{uid,    binary},
-                                         {nick,   binary},
-                                         {avatar, binary},
-                                         {token,  binary}]}).
+-http_api({"/api/get_ticket", get_ticket, [{uid,    binary},
+                                           {nick,   binary},
+                                           {avatar, binary},
+                                           {tid,    binary}]}).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
-%% @doc Get the token
--spec get_token(Uid, Nick, Avatar, Token) ->
-    {ok, nextalk_ticket()} when
-    Uid    :: binary(),
-    Nick   :: binary(),
-    Avatar :: binary(),
-    Token  :: binary().
-get_token(Uid, Nick, Avatar, Token) ->
-    Ticket = #nextalk_ticket{token  = token(),
-                        uid    = Uid,
-                        nick   = Nick,
-                        avatar = Avatar},
+%% @doc Get the ticket
+-spec get_ticket(Uid, Nick, Avatar, TID) ->
+        {ok, nextalk_ticket()} when
+        Uid    :: binary(),
+        Nick   :: binary(),
+        Avatar :: binary(),
+        TID    :: binary().
+get_ticket(Uid, Nick, Avatar, TID) ->
+    Ticket = #nextalk_ticket{tid    = token(),
+                             uid    = Uid,
+                             nick   = Nick,
+                             avatar = Avatar},
+    nextalk_ticket_sup:start_child(Ticket),
     {ok, Ticket}.
 
--spec start_link() -> {ok, pid()} | ignore | {error, any()}.
-start_link(Token) ->
-    gen_server:start_link({local, Token}, ?MODULE, [Token], []).
+-spec start_link(Ticket) -> 
+        {ok, pid()} | ignore | {error, any()} when
+        Ticket :: nextalk_ticket().
+start_link(Ticket) ->
+    #nextalk_ticket{tid = TID} = Ticket,
+    gen_server:start_link({local, TID}, ?MODULE, [Ticket], []).
 
 %% ====================================================================
 %% Behavioural functions 
 %% ====================================================================
 
-init([Token]) ->
-    {ok, #state{}}.
+init([Ticket]) ->
+    {ok, Ticket}.
 
 handle_call(_Req, _From, State) ->
     Reply = ok,

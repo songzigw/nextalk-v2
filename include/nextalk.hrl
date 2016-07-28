@@ -13,6 +13,9 @@
 -define(IDLE_TIMEOUT, 10000).
 -define(POLL_TIMEOUT, 28000).
 
+-define(TAB_TENANT_APP, nextalk_tenant_app).
+-define(TAB_TICKET, nextalk_ticket).
+
 -define(EMPTY_KEY(Key), ((Key == undefined) orelse (Key == <<>>))).
 
 -record(mqtt_admin, {username, password, tags}).
@@ -29,7 +32,7 @@
         show = available :: available | away | chat | dnd | invisible | unavailable}).
 
 -record(nextalk_ticket, {
-        token            :: binary(),
+        tid              :: binary(),
         uid              :: binary(),
         nick             :: binary(),
         avatar           :: binary(),
