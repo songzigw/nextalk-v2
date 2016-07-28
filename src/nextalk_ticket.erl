@@ -20,7 +20,7 @@
          handle_info/2,
          terminate/2,
          code_change/3]).
--export([get_ticket/4, is_valid/1, stop/1, update/1]).
+-export([get_ticket/4, is_valid/1, stop/1, update_time/1]).
 
 -http_api({"/api/get_ticket", get_ticket, [{uid,    binary},
                                            {nick,   binary},
@@ -51,7 +51,7 @@ get_ticket(Uid, Nick, Avatar, TID) ->
         false ->
             get_ticket(Uid, Nick, Avatar, <<>>),
         true  ->
-            update(TID, Nick, Avatar),
+            update_user(TID, Nick, Avatar),
             {ok, TID}.
     end.
 
@@ -75,14 +75,15 @@ checking() ->
     erlang:send_after(?INTERVAL, self(), checking).
 
 %% @doc Update user information
-update(TID, Nick, Avatar) ->
+update_user(TID, Nick, Avatar) ->
     Tid = binary_to_atom(TID, utf8),
-    gen_server:call(Tid, {update, Nick, Avatar}),
+    gen_server:call(Tid, {update_user, Nick, Avatar}),
     ets:update_element(?TAB_TICKET, Tid,
                        [{#nextalk_ticket.nick, Nick},
                         {#nextalk_ticket.avatar, Avatar}]).
 
-update(TID) ->
+%% @doc Update ticket time
+update_time(TID) ->
     Tid = binary_to_atom(TID, utf8),
     Ts = nextalk_util:timestamp(),
     gen_server:call(Tid, {update_time, Ts}),
@@ -109,7 +110,7 @@ is_valid(TID) ->
 init([Ticket]) ->
     checking(), {ok, Ticket}.
 
-handle_call({update, Nick, Avatar}, _From, State) ->
+handle_call({update_user, Nick, Avatar}, _From, State) ->
     NewState = State#nextalk_ticket{nick = Nick,
                                     avatar = Avatar},
     {reply, ok, NewState};
