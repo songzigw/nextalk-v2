@@ -23,9 +23,11 @@
 start_link() ->
     supervisor:start_link({local, ?SUP_NAME}, ?MODULE, []).
 
-start_child(Uid) when is_atom(Uid) ->
+start_child(User) when is_record(User, #nextalk_user) ->
+    #nextalk_user{uid = UID} = User,
+    Uid = binary_to_atom(UID, utf8),
     supervisor:start_child(?SUP_NAME,
-        {Uid, {nextalk_user, start_link, []},
+        {Uid, {nextalk_user, start_link, [User]},
          permanent, 5000, worker, [nextalk_user]}).
 
 %% ====================================================================

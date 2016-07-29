@@ -20,7 +20,11 @@
          handle_info/2,
          terminate/2,
          code_change/3]).
--export([get_ticket/4, is_valid/1, stop/1, update_time/1]).
+-export([start_link/1,
+         get_ticket/4,
+         is_valid/1,
+         stop/1,
+         update_time/1]).
 
 -http_api({"/api/get_ticket", get_ticket, [{uid,    binary},
                                            {nick,   binary},
@@ -56,7 +60,7 @@ get_ticket(Uid, Nick, Avatar, TID) ->
     end.
 
 %% @doc Start link
--spec start_link(Ticket) -> 
+-spec start_link(Ticket) ->
         {ok, pid()} | ignore | {error, any()} when
         Ticket :: nextalk_ticket().
 start_link(Ticket) ->

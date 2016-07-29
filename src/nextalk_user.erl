@@ -11,27 +11,52 @@
 -behaviour(gen_server).
 -include("nextalk.hrl").
 
--record(state, {}).
+-record(state, {user = #nextalk_user{}}).
 
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([]).
+-export([init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3]).
+-export([start_link/1]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
+%% @doc Start link
+-spec start_link(User) ->
+        {ok, pid()} | ignore | {error, any()} when
+        User :: nextalk_user().
+start_link(User) ->
+    #nextalk_user{uid = UID} = User,
+    Uid = binary_to_atom(UID, utf8),
+    gen_server:start_link({local, Uid}, ?MODULE, [User], []).
 
+%% @doc User online
+online(User) ->
+    #nextalk_user{uid = UID} = User,
+    Uid = binary_to_atom(UID, utf8),
+    case erlang:whereis(Uid) of
+        undefined -> nextalk_user_sup:start_child(User);
+        _         -> ok
+    end.
+
+%% @doc User offline
+offline(UID) ->
+    Uid = binary_to_atom(UID, utf8),
+    gen_server:call(Uid, offline).
 
 %% ====================================================================
 %% Behavioural functions 
 %% ====================================================================
 
-init([]) ->
-    {ok, #state{}}.
+init([User]) ->
+    {ok, #state{user = User}}.
 
-handle_call(_Request, _From, State) ->
-    Reply = ok,
-    {reply, Reply, State}.
+handle_call(offline, _From, State) ->
+    {stop, offline, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
